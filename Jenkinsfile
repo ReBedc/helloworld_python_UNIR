@@ -1,50 +1,52 @@
 pipeline {
     agent any
-
-     stages {
-        stage('Get Code') {
+    stages {
+        stage('Git clone') {
             steps {
-                // Obtener código del repo
-                //git 'https://github.com/anieto-unir/helloworld.git'
-		script {
-			scmVars = checkout scm
-			echo 'scm : the commit id is ' + scmVars.GIT_COMMIT
-		}
+                sh 'echo "Hello world"'
+                sh 'echo $WORKSPACE'
+               // git 'https://github.com/ReBedc/helloworld_python_UNIR.git'
             }
         }
-        
-        stage('Build') {
-            steps {
-                echo 'Eyyy, esto es Python. No hay que compilar nada!!!'
-		echo 'El workspace contiene el commit \'' + scmVars.GIT_COMMIT + '\' de la rama \'' + scmVars.GIT_BRANCH + '\''
-            }
-        }
-        
-        stage('Tests') {
-            parallel {
-                stage('Unit') {
+        stage('Tests'){
+            parallel{
+                stage('Unit tests') {
                     steps {
-                        bat '''
-                            set PYTHONPATH=%WORKSPACE%
-                            pytest --junitxml=result-unit.xml test\\unit
-                        '''
+                        catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
+                            sh '''
+                                export PYTHONPATH=$WORKSPACE
+                                echo $PYTHONPATH
+                                echo $PATH
+                                export PATH=//Library//Frameworks//Python.framework//Versions//3.10//bin:$PATH
+                                echo $PATH
+                                python app//calc.py
+                                pytest --junitxml=result-unit.xml test//unit
+                            '''
+                        }
                     }
                 }
-                stage('Service') {
+                stage('Service tests') {
                     steps {
-                        bat '''
-                            set FLASK_APP=app\\api.py
-                            set FLASK_ENV=development
-                            start flask run
-                            start java -jar C:\\Unir\\Ejercicios\\wiremock\\wiremock-jre8-standalone-2.28.0.jar --port 9090 --root-dir C:\\Unir\\Ejercicios\\wiremock
-                            set PYTHONPATH=%WORKSPACE%
-                            pytest --junitxml=result-rest.xml test\\rest
-                        '''
-                    }    
+                        catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
+                            sh '''
+                                export PATH=/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages:/Library/Frameworks/Python.framework/Versions/3.10/bin:/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:$PATH
+                                echo $PATH
+                                export FLASK_APP=app//api.py
+                                export FLASK_ENV=development
+                                pip3 install requests
+                                python3 -m venv development
+                                . development//bin//activate
+                                flask run & > logFlask.log
+                                export PYTHONPATH=$WORKSPACE
+                                pytest --junitxml=result-rest.xml test//rest
+                            '''
+                        }
+                    }
                 }
             }
         }
-        stage ('Results') {
+
+        stage('Results') {
             steps {
                 junit 'result*.xml'
             }
