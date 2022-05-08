@@ -6,6 +6,15 @@ pipeline {
                 sh 'echo "Hello world"'
                 sh 'echo $WORKSPACE'
                // git 'https://github.com/ReBedc/helloworld_python_UNIR.git'
+               script {
+                 scmVars = checkout scm
+                 echo 'scm : the commit id is ' + scmVars.GIT_COMMIT
+               }
+            }
+        }
+        stage('Build') {
+            steps {
+              echo 'El workspace contiene el commit \'' + scmVars.GIT_COMMIT + '\' de la rama \'' + scmVars.GIT_BRANCH + '\''
             }
         }
         stage('Tests'){
